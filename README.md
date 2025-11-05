@@ -15,3 +15,7 @@ This script automatically detects that state and restores the connection without
       `REBOOT_COOLDOWN_UPTIME` prevents constant reboots during extended outages.
 3. Logs all actions to `/var/log/wan_healer.log` and to the system log under the tag `wan_healer`.  
    You can view these in *System → Log Files → General*.
+
+
+## Do you need it?
+I ran the script for a few weeks before figuring out the cause of the drops. For some reason, the WAN was set to an MTU of 576 by default (check under Routes -> WAN MTU to see yours). DOCSIS (e.g., Rogers) typically uses an MTU of 1500, while PPPoE commonly requires 1492. After I set my MTU to the correct 1500, all the issues went away.
