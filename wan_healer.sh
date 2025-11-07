@@ -135,21 +135,20 @@ main() {
 }
 
 # -------------------- INSTALL HOOK --------------------
-if [ ! -r "$TARGET_LOCATION" ]; then
+if [ ! -x "$TARGET_LOCATION" ]; then
   cp "$0" "$TARGET_LOCATION"
   chmod 755 "$TARGET_LOCATION"
 fi
 
-if [ ! -r "$TARGET_ACTION" ]; then
-  cat > "$TARGET_ACTION" <<'EOACTION'
+if [ ! -e "$TARGET_ACTION" ]; then
+  cat > "$TARGET_ACTION" <<EOF
 [wan_healer]
-command:/usr/local/sbin/wan-healer
+command:$TARGET_LOCATION
 parameters:
 type:script
-message:starting wan healer
-description:wan_healer
-EOACTION
-  /usr/sbin/service configd restart
+message:Running WAN healer
+description:Reconfigure or reboot when WAN is unresponsive
+EOF
+  service configd restart
 fi
-
 main
