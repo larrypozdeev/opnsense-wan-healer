@@ -24,30 +24,30 @@ LOCK="/var/run/wan_healer.lock"
 ensure_logfile() {
   if [ ! -e "$LOG_FILE" ]; then
     : > "$LOG_FILE" || true
-    /bin/chmod 640 "$LOG_FILE" 2>/dev/null || true
+    chmod 640 "$LOG_FILE" 2>/dev/null || true
   fi
 }
 
 log() {
   [ "$ENABLE_LOGGING" = "true" ] || return 0
   ensure_logfile
-  MSG="$(/bin/date +%Y-%m-%d.%H:%M:%S) - $*"
+  MSG="$(date +%Y-%m-%d.%H:%M:%S) - $*"
   echo "$MSG" >> "$LOG_FILE"
-  /usr/bin/logger -t wan_healer "$*"
+  logger -t wan_healer "$*"
 }
 
 # -------------------- HELPERS --------------------
 get_uptime() {
-  curtime="$(/bin/date +%s)"
-  boottime="$(/sbin/sysctl -n kern.boottime 2>/dev/null | /usr/bin/awk -F'sec = ' '{print $2}' | /usr/bin/awk -F',' '{print $1}')"
+  curtime="$(date +%s)"
+  boottime="$(/sbin/sysctl -n kern.boottime 2>/dev/null | awk -F'sec = ' '{print $2}' | awk -F',' '{print $1}')"
   if [ -z "${boottime:-}" ]; then
-    boottime="$(/sbin/sysctl -n kern.boottime 2>/dev/null | /usr/bin/awk -F'[, ]+' '{for(i=1;i<=NF;i++) if($i=="sec") {print $(i+2); exit}}')"
+    boottime="$(/sbin/sysctl -n kern.boottime 2>/dev/null | awk -F'[, ]+' '{for(i=1;i<=NF;i++) if($i=="sec") {print $(i+2); exit}}')"
   fi
   echo $((curtime - boottime))
 }
 
 check_connectivity() {
-  GW="$(/sbin/route -n get -inet default 2>/dev/null | /usr/bin/awk '/gateway:/ {print $2; exit}')"
+  GW="$(/sbin/route -n get -inet default 2>/dev/null | awk '/gateway:/ {print $2; exit}')"
   if [ -n "${GW:-}" ]; then
     /sbin/ping -q -c 2 -W 200 "$GW" >/dev/null 2>&1 && return 0
   fi
@@ -62,7 +62,7 @@ reconfig_wan() {
 
 bounce_wan() {
   /sbin/ifconfig "$INTERFACE" down || true
-  /bin/sleep 2
+  sleep 2
   /sbin/ifconfig "$INTERFACE" up
 }
 
@@ -72,13 +72,25 @@ reboot_box() {
 
 # -------------------- MAIN --------------------
 main() {
-  exec 9>"$LOCK" || exit 0
-  if ! /usr/bin/lockf -s -t 0 9; then
+  tmpfile="${LOCK}.$$"
+  if [ -e "$LOCK" ] && ! kill -0 "$(awk '{print $1}' "$LOCK")" 2>/dev/null; then
+    log "STALE LOCK by PID $(cat $LOCK), removing."
+    rm -f "$LOCK"
+  fi
+
+  echo "$$ $PPID $(date +%s)" > "$tmpfile"
+  
+  if ln "$tmpfile" "$LOCK" 2>/dev/null; then
+    trap "rm -f '$tmpfile' '$LOCK'" EXIT INT TERM HUP
+  else
+    log "LOCKED by PID $(cat $LOCK), exiting."
+    rm -f "$tmpfile"
     exit 0
   fi
 
   uptime="$(get_uptime)"
   if [ "$uptime" -lt "$MIN_UPTIME" ]; then
+    log "SKIP: uptime ${uptime}s < MIN_UPTIME ${MIN_UPTIME}s"
     exit 0
   fi
 
@@ -87,17 +99,17 @@ main() {
   else
     log "FAIL#1: down → reconfigure WAN"
     reconfig_wan
-    /bin/sleep "$CHECK_INTERVAL_SEC"
+    sleep "$CHECK_INTERVAL_SEC"
     if ! check_connectivity; then
       log "FAIL#2: still down → bounce WAN"
       bounce_wan
-      /bin/sleep "$CHECK_INTERVAL_SEC"
+      sleep "$CHECK_INTERVAL_SEC"
 
       fails=2
       max_fails=$(( RETRY_WINDOW_SEC / CHECK_INTERVAL_SEC ))
       [ "$max_fails" -lt 1 ] && max_fails=1
       while [ "$fails" -lt "$max_fails" ]; do
-        /bin/sleep "$CHECK_INTERVAL_SEC"
+        sleep "$CHECK_INTERVAL_SEC"
         if check_connectivity; then
           log "RECOVERED after $fails consecutive fails"
           break
@@ -124,13 +136,12 @@ main() {
 
 # -------------------- INSTALL HOOK --------------------
 if [ ! -r "$TARGET_LOCATION" ]; then
-  /bin/cp "$0" "$TARGET_LOCATION"
-  /bin/chmod 755 "$TARGET_LOCATION"
+  cp "$0" "$TARGET_LOCATION"
+  chmod 755 "$TARGET_LOCATION"
 fi
 
-# Configd action so it shows up as "wan_healer" in the GUI/Cron
 if [ ! -r "$TARGET_ACTION" ]; then
-  /bin/cat > "$TARGET_ACTION" <<'EOACTION'
+  cat > "$TARGET_ACTION" <<'EOACTION'
 [wan_healer]
 command:/usr/local/sbin/wan-healer
 parameters:
