@@ -8,7 +8,7 @@ This script automatically detects that state and restores the connection without
 ## How it works
 1. Periodically pings the default gateway and a couple of public IPs.  
 2. If all fail:
-   1. Runs `configctl interface reconfigure wan` which is same as to going to *Interfaces -> Overview* and clicking "Reload" on the WAN interface.  
+   1. Runs `configctl interface reconfigure wan` which is same as to going to *Interfaces -> Overview* and clicking `Reload` on the WAN interface.  
       This resolves the issue most of the time, so steps 2 and 3 usually don’t execute.  
    2. If still down, toggles the interface using `ifconfig <iface> down/up`, simulating a physical cable reconnect.  
    3. As a last resort, reboots the system if the previous steps fail.  
@@ -34,6 +34,6 @@ Recomendation: If you're on ZFS, create a snapshot before making any changes or 
    ./wan_healer.sh
    ```
 7. In the OPNsense GUI, go to System → Settings → Cron, click Add:
-   - For Command, choose "Reconfigure or reboot when WAN is unresponsive"
+   - For Command, choose `Reconfigure or reboot when WAN is unresponsive`
    - I set the minutes to `*/3`, everything else to * so the script executes every 3 min. That's up to your preference.
    - Add a description, save, and apply
