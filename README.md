@@ -25,6 +25,7 @@ Recomendation: If you're on ZFS, create a snapshot before making any changes or 
     ```bash
    fetch -o ./wan_healer.sh https://raw.githubusercontent.com/larrypozdeev/opnsense-wan-healer/main/wan_healer.sh
    ```
+3. Change `INTERFACE` to your WAN interface in the config portion of the script.
 4. Make it executable:
    ```bash
    chmod +x ./wan_healer.sh
