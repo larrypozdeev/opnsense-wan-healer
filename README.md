@@ -35,5 +35,5 @@ Recomendation: If you're on ZFS, create a snapshot before making any changes or 
    ```
 7. In the OPNsense GUI, go to System → Settings → Cron, click Add:
    - For Command, choose "Reconfigure or reboot when WAN is unresponsive"
-   - I set the minutes to "3", so the script executes every 3 min. That's up to your preference.
+   - I set the minutes to "*/3", everything else to * so the script executes every 3 min. That's up to your preference.
    - Add a description, save, and apply
