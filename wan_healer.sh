@@ -16,7 +16,7 @@ REBOOT_COOLDOWN_UPTIME=1800
 LOG_FILE="/var/log/wan_healer.log"
 ENABLE_LOGGING="true"
 
-TARGET_ACTION="/usr/local/opnsense/service/conf/actions.d/actions_wan_healer.conf"
+TARGET_ACTION="/usr/local/opnsense/service/conf/actions.d/actions_system.conf"
 TARGET_LOCATION="/usr/local/sbin/wan-healer"
 LOCK="/var/run/wan_healer.lock"
 
@@ -97,11 +97,11 @@ main() {
   if check_connectivity; then
     log "OK: connectivity up"
   else
-    log "FAIL#1: down → reconfigure WAN"
+    log "FAIL#1: connectivity down, attempting WAN reconfigure"
     reconfig_wan
     sleep "$CHECK_INTERVAL_SEC"
     if ! check_connectivity; then
-      log "FAIL#2: still down → bounce WAN"
+      log "FAIL#2: still down, attempting to bounce WAN"
       bounce_wan
       sleep "$CHECK_INTERVAL_SEC"
 
@@ -140,8 +140,9 @@ if [ ! -x "$TARGET_LOCATION" ]; then
   chmod 755 "$TARGET_LOCATION"
 fi
 
-if [ ! -e "$TARGET_ACTION" ]; then
-  cat > "$TARGET_ACTION" <<EOF
+if ! grep -q '\[wan_healer\]' "$TARGET_ACTION"; then
+  cat >> "$TARGET_ACTION" <<EOF
+
 [wan_healer]
 command:$TARGET_LOCATION
 parameters:
@@ -151,4 +152,5 @@ description:Reconfigure or reboot when WAN is unresponsive
 EOF
   service configd restart
 fi
+
 main
