@@ -47,14 +47,47 @@ get_uptime() {
 }
 
 check_connectivity() {
+  local gateway_status=1
+  local ip1_status=1
+  local ip2_status=1
+
+  # Check if the gateway is reachable
   GW="$(/sbin/route -n get -inet default 2>/dev/null | awk '/gateway:/ {print $2; exit}')"
   if [ -n "${GW:-}" ]; then
-    /sbin/ping -q -c 2 -W 200 "$GW" >/dev/null 2>&1 && return 0
+    if /sbin/ping -q -c 2 -W 200 "$GW" >/dev/null 2>&1; then
+      gateway_status=0
+      log "Gateway $GW is reachable"
+    else
+      log "Gateway $GW is unreachable"
+    fi
+  else
+    log "No gateway found"
   fi
-  /sbin/ping -q -c 2 -W 200 "$IP1" >/dev/null 2>&1 && return 0
-  /sbin/ping -q -c 2 -W 200 "$IP2" >/dev/null 2>&1 && return 0
-  return 1
+
+  # Check if IP1 is reachable
+  if /sbin/ping -q -c 2 -W 200 "$IP1" >/dev/null 2>&1; then
+    ip1_status=0
+    log "$IP1 is reachable"
+  else
+    log "$IP1 is unreachable"
+  fi
+
+  # Check if IP2 is reachable
+  if /sbin/ping -q -c 2 -W 200 "$IP2" >/dev/null 2>&1; then
+    ip2_status=0
+    log "$IP2 is reachable"
+  else
+    log "$IP2 is unreachable"
+  fi
+
+  # If any of the targets failed, return 1
+  if [ "$gateway_status" -ne 0 ] || [ "$ip1_status" -ne 0 ] || [ "$ip2_status" -ne 0 ]; then
+    return 1
+  fi
+
+  return 0
 }
+
 
 reconfig_wan() {
   /usr/local/sbin/configctl interface reconfigure wan
